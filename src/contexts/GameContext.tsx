@@ -1,109 +1,66 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-
-interface Player {
-  id: string;
-  name: string;
-  avatar?: string;
-  score: number;
-}
-
-interface GameState {
-  gameId: string | null;
-  code: string | null;
-  players: Player[];
-  isVIP: boolean;
-  currentTopic: string | null;
-  round: number;
-  status: 'waiting' | 'topic-selection' | 'ranking' | 'guessing' | 'reveal' | 'scoreboard' | 'finished';
-}
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { useGameState } from '@/hooks/useGameState';
+import { useGameActions } from '@/hooks/useGameActions';
+import { useNavigate } from 'react-router-dom';
 
 interface GameContextType {
-  gameState: GameState;
-  createGame: (topicId?: string) => void;
-  joinGame: (code: string, playerName: string) => void;
-  setTopic: (topicId: string) => void;
-  submitRanking: (rankings: string[]) => void;
-  nextRound: () => void;
-  endGame: () => void;
+  gameId: string | null;
+  isVIP: boolean;
+  isCreator: boolean;
+  createGame: (settings?: { target_score?: number; points_per_correct?: number }) => Promise<void>;
+  joinGame: (code: string) => Promise<void>;
   leaveGame: () => void;
 }
-
-const initialState: GameState = {
-  gameId: null,
-  code: null,
-  players: [],
-  isVIP: false,
-  currentTopic: null,
-  round: 0,
-  status: 'waiting',
-};
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [gameState, setGameState] = useState<GameState>(initialState);
+  const [gameId, setGameId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { game, players } = useGameState(gameId);
+  const gameActions = useGameActions();
+  const navigate = useNavigate();
 
-  const createGame = (topicId?: string) => {
-    const code = Math.random().toString(36).substr(2, 6).toUpperCase();
-    setGameState({
-      ...initialState,
-      gameId: Math.random().toString(36).substr(2, 9),
-      code,
-      isVIP: true,
-      currentTopic: topicId || null,
-      status: 'waiting',
-    });
+  const isVIP = game?.current_vip_id === user?.id;
+  const isCreator = game?.creator_id === user?.id;
+
+  const createGame = async (settings?: { target_score?: number; points_per_correct?: number }) => {
+    if (!user) return;
+
+    const newGame = await gameActions.createGame(user.id, settings);
+    if (newGame) {
+      setGameId(newGame.id);
+      navigate('/game/waiting-room');
+    }
   };
 
-  const joinGame = (code: string, playerName: string) => {
-    setGameState(prev => ({
-      ...prev,
-      gameId: Math.random().toString(36).substr(2, 9),
-      code,
-      players: [...prev.players, {
-        id: Math.random().toString(36).substr(2, 9),
-        name: playerName,
-        score: 0,
-      }],
-    }));
-  };
+  const joinGame = async (code: string) => {
+    if (!user) return;
 
-  const setTopic = (topicId: string) => {
-    setGameState(prev => ({ ...prev, currentTopic: topicId }));
-  };
-
-  const submitRanking = (rankings: string[]) => {
-    // Placeholder for ranking submission
-    console.log('Rankings submitted:', rankings);
-  };
-
-  const nextRound = () => {
-    setGameState(prev => ({
-      ...prev,
-      round: prev.round + 1,
-      status: 'topic-selection',
-    }));
-  };
-
-  const endGame = () => {
-    setGameState(prev => ({ ...prev, status: 'finished' }));
+    const game = await gameActions.joinGame(code, user.id);
+    if (game) {
+      setGameId(game.id);
+      navigate('/game/waiting-room');
+    }
   };
 
   const leaveGame = () => {
-    setGameState(initialState);
+    setGameId(null);
+    navigate('/user/home');
   };
 
   return (
-    <GameContext.Provider value={{
-      gameState,
-      createGame,
-      joinGame,
-      setTopic,
-      submitRanking,
-      nextRound,
-      endGame,
-      leaveGame,
-    }}>
+    <GameContext.Provider
+      value={{
+        gameId,
+        isVIP,
+        isCreator,
+        createGame,
+        joinGame,
+        leaveGame,
+      }}
+    >
       {children}
     </GameContext.Provider>
   );

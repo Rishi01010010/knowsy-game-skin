@@ -20,8 +20,7 @@ export const CreateGameScreen = () => {
   ];
 
   const handleCreate = () => {
-    createGame(selectedTopic);
-    navigate('/game/waiting-room');
+    createGame();
   };
 
   return (

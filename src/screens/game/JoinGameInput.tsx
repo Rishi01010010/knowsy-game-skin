@@ -16,8 +16,9 @@ export const JoinGameInput = () => {
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    joinGame(code, playerName);
-    navigate('/game/waiting-room');
+    if (code.trim()) {
+      joinGame(code.toUpperCase());
+    }
   };
 
   return (

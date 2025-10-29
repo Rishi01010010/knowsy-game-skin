@@ -14,7 +14,295 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      game_players: {
+        Row: {
+          game_id: string
+          id: string
+          joined_at: string
+          score: number
+          user_id: string
+          username: string
+        }
+        Insert: {
+          game_id: string
+          id?: string
+          joined_at?: string
+          score?: number
+          user_id: string
+          username: string
+        }
+        Update: {
+          game_id?: string
+          id?: string
+          joined_at?: string
+          score?: number
+          user_id?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_players_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      games: {
+        Row: {
+          bonus_all_correct: number
+          code: string
+          created_at: string
+          creator_id: string
+          current_vip_id: string | null
+          id: string
+          penalty_all_wrong: number
+          points_per_correct: number
+          status: string
+          target_score: number
+          updated_at: string
+        }
+        Insert: {
+          bonus_all_correct?: number
+          code: string
+          created_at?: string
+          creator_id: string
+          current_vip_id?: string | null
+          id?: string
+          penalty_all_wrong?: number
+          points_per_correct?: number
+          status?: string
+          target_score?: number
+          updated_at?: string
+        }
+        Update: {
+          bonus_all_correct?: number
+          code?: string
+          created_at?: string
+          creator_id?: string
+          current_vip_id?: string | null
+          id?: string
+          penalty_all_wrong?: number
+          points_per_correct?: number
+          status?: string
+          target_score?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      guesses: {
+        Row: {
+          created_at: string
+          id: string
+          is_correct: boolean | null
+          item_id: string
+          position: number
+          round_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          item_id: string
+          position: number
+          round_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          item_id?: string
+          position?: number
+          round_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guesses_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "topic_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guesses_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      rankings: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          position: number
+          round_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          position: number
+          round_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          position?: number
+          round_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rankings_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "topic_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rankings_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rounds: {
+        Row: {
+          created_at: string
+          game_id: string
+          id: string
+          reveal_index: number
+          round_number: number
+          status: string
+          topic_id: string
+          vip_id: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: string
+          id?: string
+          reveal_index?: number
+          round_number: number
+          status?: string
+          topic_id: string
+          vip_id: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: string
+          id?: string
+          reveal_index?: number
+          round_number?: number
+          status?: string
+          topic_id?: string
+          vip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rounds_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rounds_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_items: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          position: number
+          topic_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          position: number
+          topic_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          topic_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_items_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topics: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_editable: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_editable?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_editable?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

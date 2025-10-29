@@ -6,7 +6,7 @@ import { Users, Copy, Settings } from 'lucide-react';
 
 export const GameWaitingRoom = () => {
   const navigate = useNavigate();
-  const { gameState } = useGame();
+  const { gameId, isVIP, isCreator } = useGame();
 
   const mockPlayers = [
     { id: '1', name: 'John', avatar: '🎮' },
@@ -15,7 +15,7 @@ export const GameWaitingRoom = () => {
   ];
 
   const copyCode = () => {
-    navigator.clipboard.writeText(gameState.code || '');
+    navigator.clipboard.writeText('ABC123');
   };
 
   return (
@@ -25,7 +25,7 @@ export const GameWaitingRoom = () => {
           <h1 className="text-4xl font-bold gradient-text mb-4">Waiting Room</h1>
           <div className="flex items-center justify-center gap-2 mb-2">
             <span className="text-2xl text-muted-foreground">Game Code:</span>
-            <span className="text-4xl font-bold text-primary">{gameState.code || 'ABC123'}</span>
+            <span className="text-4xl font-bold text-primary">ABC123</span>
             <ThemedButton variant="outline" size="icon" onClick={copyCode}>
               <Copy className="w-4 h-4" />
             </ThemedButton>
@@ -65,7 +65,7 @@ export const GameWaitingRoom = () => {
                 <p className="text-muted-foreground mb-1">Topic</p>
                 <p className="text-lg font-semibold">Movies 2023</p>
               </div>
-              {gameState.isVIP && (
+              {isVIP && (
                 <ThemedButton variant="outline" className="w-full">
                   <Settings className="w-4 h-4 mr-2" />
                   Game Settings
@@ -75,7 +75,7 @@ export const GameWaitingRoom = () => {
           </ThemedCard>
         </div>
 
-        {gameState.isVIP && (
+        {isVIP && (
           <ThemedButton
             gradient
             glow
