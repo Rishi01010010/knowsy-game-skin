@@ -420,16 +420,186 @@ export const useGameActions = () => {
     return rotateVIP(gameId, players);
   };
 
+  const createRound = async (gameId: string, topicId: string, vipId: string) => {
+    try {
+      // Get current round count
+      const { count } = await supabase
+        .from('rounds')
+        .select('*', { count: 'exact', head: true })
+        .eq('game_id', gameId);
+
+      const roundNumber = (count || 0) + 1;
+
+      const { data, error } = await supabase
+        .from('rounds')
+        .insert({
+          game_id: gameId,
+          topic_id: topicId,
+          vip_id: vipId,
+          round_number: roundNumber,
+          status: 'vip_ranking',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error creating round:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create round',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
+
+  const updateRoundStatus = async (roundId: string, status: string) => {
+    try {
+      const { error } = await supabase
+        .from('rounds')
+        .update({ status })
+        .eq('id', roundId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error updating round status:', error);
+      return false;
+    }
+  };
+
+  const updateRevealIndex = async (roundId: string, index: number) => {
+    try {
+      const { error } = await supabase
+        .from('rounds')
+        .update({ reveal_index: index })
+        .eq('id', roundId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error updating reveal index:', error);
+      return false;
+    }
+  };
+
+  const submitRanking = async (roundId: string, items: { id: string; name: string }[]) => {
+    try {
+      const rankings = items.map((item, index) => ({
+        round_id: roundId,
+        item_id: item.id,
+        position: index + 1,
+      }));
+
+      const { error } = await supabase
+        .from('rankings')
+        .insert(rankings);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error submitting ranking:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to submit ranking',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
+  const submitPlayerGuess = async (
+    roundId: string,
+    userId: string,
+    items: { id: string; name: string }[]
+  ) => {
+    try {
+      // Get VIP rankings to compare
+      const { data: rankings } = await supabase
+        .from('rankings')
+        .select('item_id, position')
+        .eq('round_id', roundId);
+
+      if (!rankings) throw new Error('Rankings not found');
+
+      const rankingsMap = new Map(rankings.map(r => [r.item_id, r.position]));
+
+      const guesses = items.map((item, index) => ({
+        round_id: roundId,
+        user_id: userId,
+        item_id: item.id,
+        position: index + 1,
+        is_correct: rankingsMap.get(item.id) === index + 1,
+      }));
+
+      const { error } = await supabase
+        .from('guesses')
+        .insert(guesses);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error submitting guess:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to submit guess',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
+  const endGame = async (gameId: string) => {
+    try {
+      const { error } = await supabase
+        .from('games')
+        .update({ status: 'finished' })
+        .eq('id', gameId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error ending game:', error);
+      return false;
+    }
+  };
+
+  const rotateVIPWithFetch = async (gameId: string) => {
+    try {
+      // Fetch players
+      const { data: players } = await supabase
+        .from('game_players')
+        .select('user_id')
+        .eq('game_id', gameId)
+        .order('joined_at', { ascending: true });
+
+      if (!players || players.length === 0) return false;
+
+      return rotateVIP(gameId, players);
+    } catch (error) {
+      console.error('Error rotating VIP:', error);
+      return false;
+    }
+  };
+
   return {
     createGame,
     joinGame,
     startRound,
     selectTopic,
     submitVIPRanking,
-    submitGuess,
     startReveal,
     revealNext,
-    rotateVIP,
     passVIP,
+    createRound,
+    updateRoundStatus,
+    updateRevealIndex,
+    submitRanking,
+    submitGuess: submitPlayerGuess,
+    calculateScores,
+    endGame,
+    rotateVIP: rotateVIPWithFetch,
   };
 };

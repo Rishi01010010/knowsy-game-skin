@@ -1,18 +1,102 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ThemedButton } from '@/components/ThemedButton';
 import { ThemedCard } from '@/components/ThemedCard';
-import { GripVertical } from 'lucide-react';
+import { DraggableItemList } from '@/components/game/DraggableItemList';
+import { useGame } from '@/contexts/GameContext';
+import { useGameState } from '@/hooks/useGameState';
+import { useGameActions } from '@/hooks/useGameActions';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface TopicItem {
+  id: string;
+  name: string;
+}
 
 export const VIPRanking = () => {
   const navigate = useNavigate();
-  const [items] = useState([
-    { id: '1', title: 'Oppenheimer' },
-    { id: '2', title: 'Barbie' },
-    { id: '3', title: 'Guardians of the Galaxy Vol. 3' },
-    { id: '4', title: 'Spider-Man: Across the Spider-Verse' },
-    { id: '5', title: 'The Super Mario Bros. Movie' },
-  ]);
+  const { gameId, isVIP } = useGame();
+  const { currentRound } = useGameState(gameId);
+  const gameActions = useGameActions();
+  const { toast } = useToast();
+  const [items, setItems] = useState<TopicItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isVIP) {
+      navigate('/game/waiting-room');
+      return;
+    }
+    if (!currentRound) {
+      navigate('/game/topic-selection');
+      return;
+    }
+    fetchTopicItems();
+  }, [isVIP, currentRound]);
+
+  const fetchTopicItems = async () => {
+    if (!currentRound?.topic_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('topic_items')
+        .select('*')
+        .eq('topic_id', currentRound.topic_id)
+        .order('position', { ascending: true });
+
+      if (error) throw error;
+      setItems(data || []);
+    } catch (error) {
+      console.error('Error fetching items:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load items',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReorder = (reorderedItems: TopicItem[]) => {
+    setItems(reorderedItems);
+  };
+
+  const handleSubmit = async () => {
+    if (!currentRound || items.length === 0) return;
+
+    setSubmitting(true);
+    try {
+      await gameActions.submitRanking(currentRound.id, items);
+      await gameActions.updateRoundStatus(currentRound.id, 'player_guessing');
+      
+      toast({
+        title: 'Ranking Submitted',
+        description: 'Waiting for players to guess',
+      });
+      
+      navigate('/game/waiting-room');
+    } catch (error) {
+      console.error('Error submitting ranking:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to submit ranking',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <p className="text-muted-foreground">Loading items...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -23,27 +107,20 @@ export const VIPRanking = () => {
         </div>
 
         <ThemedCard glow>
-          <div className="space-y-3 mb-6">
-            {items.map((item, index) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-3 p-4 bg-muted rounded-lg cursor-move hover:bg-muted/80 transition-colors"
-              >
-                <GripVertical className="w-5 h-5 text-muted-foreground" />
-                <span className="text-2xl font-bold text-primary">{index + 1}</span>
-                <span className="text-lg font-semibold flex-1">{item.title}</span>
-              </div>
-            ))}
-          </div>
+          <DraggableItemList
+            items={items}
+            onReorder={handleReorder}
+          />
 
           <ThemedButton
             gradient
             glow
             size="lg"
-            className="w-full"
-            onClick={() => navigate('/game/guessing')}
+            className="w-full mt-6"
+            onClick={handleSubmit}
+            disabled={submitting}
           >
-            Confirm Ranking
+            {submitting ? 'Submitting...' : 'Confirm Ranking'}
           </ThemedButton>
         </ThemedCard>
       </div>
