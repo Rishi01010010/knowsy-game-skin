@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface User {
   id: string;
@@ -20,41 +22,144 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Simulate checking for existing session
-    const checkSession = () => {
-      const storedUser = localStorage.getItem('knowsy_user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+    // Check for existing session
+    checkUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+      } else {
+        setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
     };
-    
-    checkSession();
   }, []);
 
+  const checkUser = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await loadUserProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error checking user:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      if (profile) {
+        setUser({
+          id: userId,
+          email: profile.username || '',
+          isEntity: false,
+          entityId: undefined,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const login = async (email: string, password: string, isEntity: boolean) => {
-    // Placeholder login logic
-    const mockUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      isEntity,
-      entityId: isEntity ? Math.random().toString(36).substr(2, 9) : undefined,
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('knowsy_user', JSON.stringify(mockUser));
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        await loadUserProfile(data.user.id);
+        toast({
+          title: 'Success',
+          description: 'Logged in successfully',
+        });
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to login',
+        variant: 'destructive',
+      });
+      throw error;
+    }
   };
 
   const signup = async (email: string, password: string, isEntity: boolean) => {
-    // Placeholder signup logic
-    await login(email, password, isEntity);
+    try {
+      // Extract username from email
+      const username = email.split('@')[0];
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        toast({
+          title: 'Success',
+          description: 'Account created successfully',
+        });
+        await loadUserProfile(data.user.id);
+      }
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to sign up',
+        variant: 'destructive',
+      });
+      throw error;
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('knowsy_user');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      toast({
+        title: 'Success',
+        description: 'Logged out successfully',
+      });
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to logout',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
